@@ -1,0 +1,23 @@
+# Виртуальное окружение
+.venv/
+venv/
+
+# Сборка PyInstaller
+dist/
+build/
+*.spec
+
+# Python
+__pycache__/
+*.pyc
+*.pyd
+
+# IDE
+.idea/
+.vscode/
+
+# Пользовательские профили (не коммитим чужие пресеты)
+profiles/*.json
+
+# macOS
+.DS_Store
