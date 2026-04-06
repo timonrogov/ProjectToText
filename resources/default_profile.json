@@ -1,0 +1,31 @@
+{
+  "profile_name": "Default",
+  "version": "1.0",
+  "filters": {
+    "max_file_size_kb": 20,
+    "whitelist": [],
+    "blacklist": [
+      "node_modules", "venv", "env", "__pycache__",
+      "dist", "build", "target", ".idea", ".vscode",
+      "bin", "obj", "packages", "x64"
+    ],
+    "ignored_extensions": [
+      ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".svg", ".ico", ".webp",
+      ".mp4", ".mov", ".avi", ".mkv", ".mp3", ".wav", ".ogg",
+      ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".odt",
+      ".ttf", ".woff", ".woff2",
+      ".exe", ".cmd", ".bat", ".dll", ".so", ".o", ".a", ".lib",
+      ".jar", ".war", ".ear", ".class", ".pyd",
+      ".zip", ".rar", ".7z", ".tar", ".gz", ".bz2",
+      ".db", ".sqlite3", ".mdb",
+      ".pyc", ".DS_Store",
+      ".vcxproj", ".vcxproj.filters", ".vcxproj.user",
+      ".csproj", ".sln"
+    ]
+  },
+  "output_settings": {
+    "format": "markdown",
+    "remove_empty_lines": false,
+    "include_file_stats": true
+  }
+}
