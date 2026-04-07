@@ -5,34 +5,41 @@ from pathlib import Path
 from typing import Optional
 
 from core.models import FileNode, SkipReason, CheckState, Profile
+from core.utils import normalize_extension
 
 
 class FilterEngine:
     """
     Применяет 6-шаговую иерархию правил фильтрации из ТЗ (раздел 3.3).
 
-    Принимает профиль настроек при инициализации.
-    Метод should_include() — главная точка входа.
+    Порядок приоритетов (от наивысшего к низшему):
+      1. Ручное снятие галочки в GUI          → безусловное исключение
+      2. Белый список                          → безусловное включение*
+      3. Чёрный список                         → исключить
+      4. Игнорируемые расширения               → исключить
+      5. Превышение лимита размера             → исключить
+      6. Бинарный файл (null-байты)            → исключить
+
+    * Файлы из белого списка всё равно исключаются, если они бинарные.
     """
 
-    # Максимальное количество байт для проверки бинарности (8 КБ достаточно)
-    _BINARY_CHECK_BYTES = 8192
+    _BINARY_CHECK_BYTES = 8192   # Проверяем первые 8 КБ
 
     def __init__(self, profile: Profile):
         self._profile = profile
 
-        # Предварительно нормализуем списки для быстрого поиска
+        # Предварительная нормализация для быстрого поиска O(1)
         self._whitelist_set: set[str] = {
-            self._normalize(p) for p in profile.whitelist
+            self._normalize(p) for p in profile.whitelist if p.strip()
         }
         self._blacklist_set: set[str] = {
-            self._normalize(p) for p in profile.blacklist
+            self._normalize(p) for p in profile.blacklist if p.strip()
         }
         self._ext_set: set[str] = {
-            e.lower() if e.startswith(".") else f".{e.lower()}"
-            for e in profile.ignored_extensions
+            normalize_extension(e)
+            for e in profile.ignored_extensions if e.strip()
         }
-        self._max_bytes: int = int(profile.max_file_size_kb * 1024)
+        self._max_bytes: int = max(1, int(profile.max_file_size_kb * 1024))
 
     # ------------------------------------------------------------------
     # Публичный API
@@ -42,41 +49,44 @@ class FilterEngine:
         self, node: FileNode
     ) -> tuple[bool, Optional[SkipReason]]:
         """
-        Определяет, нужно ли включать файл в итоговую сборку.
+        Определяет, включать ли файл в итоговую сборку.
 
         Returns:
-            (True, None)              — включить файл
+            (True, None)              — включить
             (False, SkipReason.XXX)   — исключить с указанием причины
+            (False, None)             — папка или снятый вручную узел
         """
-        # Папки сами по себе не попадают в вывод — только их файлы
+        # Папки сами по себе не попадают в вывод
         if node.is_dir:
             return False, None
 
-        # --- Шаг 1: Ручной выбор в GUI ---
+        # Шаг 1: Ручной выбор в GUI
         if node.check_state == CheckState.UNCHECKED:
             return False, SkipReason.UNCHECKED
 
-        # --- Шаг 2: Белый список (наивысший приоритет) ---
+        # Шаг 2: Белый список (обходит шаги 3–5, но НЕ шаг 6)
         if self._in_whitelist(node):
-            # Белый список обходит ВСЕ остальные проверки,
-            # кроме одной: бинарный файл всё равно не читаем
+            if node.has_permission_error:
+                return False, SkipReason.PERMISSION
             if self._is_binary(node.abs_path):
                 return False, SkipReason.BINARY
             return True, None
 
-        # --- Шаг 3: Чёрный список ---
+        # Шаг 3: Чёрный список
         if self._in_blacklist(node):
             return False, SkipReason.BLACKLIST
 
-        # --- Шаг 4: Фильтр расширений ---
+        # Шаг 4: Фильтр расширений
         if node.extension in self._ext_set:
             return False, SkipReason.EXTENSION
 
-        # --- Шаг 5: Лимит размера ---
+        # Шаг 5: Лимит размера
         if node.size_bytes > self._max_bytes:
             return False, SkipReason.SIZE
 
-        # --- Шаг 6: Проверка на бинарность (fallback-защита) ---
+        # Шаг 6: Проверка на бинарность (fallback-защита)
+        if node.has_permission_error:
+            return False, SkipReason.PERMISSION
         if self._is_binary(node.abs_path):
             return False, SkipReason.BINARY
 
@@ -84,9 +94,8 @@ class FilterEngine:
 
     def mark_nodes(self, root: FileNode) -> None:
         """
-        Проходит по всему дереву и проставляет флаги
-        in_whitelist / in_blacklist на каждом узле.
-        Используется для подсветки в GUI.
+        Проставляет флаги in_whitelist / in_blacklist на всём дереве.
+        Используется GUI для подсветки.
         """
         self._mark_recursive(root)
 
@@ -101,47 +110,45 @@ class FilterEngine:
 
     def _in_blacklist(self, node: FileNode) -> bool:
         """
-        Проверяем и само имя файла, и имена ВСЕХ его родительских директорий.
-        Это позволяет исключить node_modules/lodash/index.js, просто указав
-        'node_modules' в чёрном списке.
+        Исключение срабатывает, если:
+        - Имя самого файла в чёрном списке, ИЛИ
+        - Любой компонент пути (родительская папка) в чёрном списке.
+
+        Это позволяет написать «node_modules» и исключить все файлы внутри.
         """
-        # Проверяем имя самого файла
         if self._normalize(node.name) in self._blacklist_set:
             return True
-
-        # Проверяем каждый компонент относительного пути
         for part in node.rel_path.parts:
             if self._normalize(part) in self._blacklist_set:
                 return True
-
         return False
 
     @staticmethod
     def _is_binary(path: Path) -> bool:
         """
-        Эвристика: файл считается бинарным, если в первых 8 КБ
-        содержится нулевой байт (\x00).
+        Эвристика бинарности: ищем null-байт (\x00) в первых 8 КБ.
+        При любой ошибке доступа считаем файл НЕ бинарным —
+        реальная ошибка будет поймана при чтении в генераторе.
         """
         try:
             with open(path, "rb") as f:
-                chunk = f.read(FilterEngine._BINARY_CHECK_BYTES)
-                return b"\x00" in chunk
-        except OSError:
-            # Нет доступа или файл исчез — считаем не бинарным,
-            # ошибку поймаем при реальном чтении в генераторе
+                return b"\x00" in f.read(FilterEngine._BINARY_CHECK_BYTES)
+        except (OSError, PermissionError):
             return False
 
     @staticmethod
     def _normalize(s: str) -> str:
-        """Нормализация для сравнения: нижний регистр, прямые слэши."""
+        """Нижний регистр + прямые слэши + без ведущих/ведомых слэшей."""
         return s.lower().replace("\\", "/").strip("/")
 
     def _mark_recursive(self, node: FileNode) -> None:
-        if not node.is_dir:
-            node.in_whitelist = self._in_whitelist(node)
-            node.in_blacklist = self._in_blacklist(node)
-        else:
-            # Папка в чёрном списке — помечаем её саму
+        if node.is_dir:
             node.in_blacklist = self._normalize(node.name) in self._blacklist_set
+            node.in_whitelist = False
             for child in node.children:
                 self._mark_recursive(child)
+        else:
+            node.in_whitelist = self._in_whitelist(node)
+            node.in_blacklist = (
+                not node.in_whitelist and self._in_blacklist(node)
+            )
