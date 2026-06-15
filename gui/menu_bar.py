@@ -66,7 +66,7 @@ class AppMenuBar(QMenuBar):
         QMessageBox.about(
             self.parent(),
             "О программе",
-            "<h3>LLM Context Builder</h3>"
+            "<h3>Project to Text</h3>"
             "<p>Инструмент для агрегации исходного кода "
             "в единый текстовый контекст для LLM.</p>"
             "<p>Стек: Python 3.10+, PyQt6, tiktoken, pathspec</p>",

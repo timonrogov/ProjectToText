@@ -40,7 +40,7 @@ def step(title: str) -> None:
 
 def main():
     start_time = time.time()
-    print("🚀 Запуск сборки LLM Context Builder")
+    print("🚀 Запуск сборки Project to Text")
     print(f"   Платформа: {sys.platform}")
     print(f"   Python:    {sys.version.split()[0]}")
     print(f"   Корень:    {ROOT}")
@@ -96,6 +96,8 @@ def main():
         str(spec_path),
         '--clean',
         '--noconfirm',
+        '--distpath', str(ROOT / 'dist'),
+        '--workpath', str(ROOT / 'build'),
     ])
 
     # ------------------------------------------------------------------
@@ -104,9 +106,9 @@ def main():
     step("Шаг 5: Проверка результата")
 
     if sys.platform == "win32":
-        exe_path = ROOT / "dist" / "LLMContextBuilder.exe"
+        exe_path = ROOT / "dist" / "Project to Text.exe"
     else:
-        exe_path = ROOT / "dist" / "LLMContextBuilder"
+        exe_path = ROOT / "dist" / "Project to Text"
 
     if not exe_path.exists():
         print(f"❌ Исполняемый файл не найден: {exe_path}")

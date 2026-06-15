@@ -42,7 +42,7 @@ class CustomTitleBar(QWidget):
         layout.setSpacing(0)
 
         # Название приложения
-        title_label = QLabel("LLM Context Builder")
+        title_label = QLabel("Project to Text")
         title_label.setObjectName("titleBarLabel")
         layout.addWidget(title_label)
         layout.addStretch()
