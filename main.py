@@ -11,30 +11,47 @@ from PyQt6.QtCore import Qt
 
 
 def load_stylesheet(app: QApplication) -> None:
-    qss_path = Path(__file__).parent / "resources" / "styles" / "main.qss"
+    """Загружает QSS-стили через resource_path (работает и в бандле, и в IDE)."""
+    from core.resource_path import resource_path
+    qss_path = resource_path("resources/styles/main.qss")
     if qss_path.exists():
         app.setStyleSheet(qss_path.read_text(encoding="utf-8"))
     else:
         print(f"[WARNING] Файл стилей не найден: {qss_path}", file=sys.stderr)
 
 
-def handle_uncaught_exception(
-    exc_type, exc_value, exc_traceback
-) -> None:
-    """
-    Глобальный обработчик необработанных исключений.
-    Вместо молчаливого краша показывает пользователю диалог с деталями.
-    """
+def set_app_icon(app: QApplication) -> None:
+    """Устанавливает иконку приложения (в заголовке окна и панели задач)."""
+    from core.resource_path import resource_path
+    from PyQt6.QtGui import QIcon
+
+    # PyQt прекрасно читает PNG на ЛЮБОЙ ОС (плагины для .ico больше не нужны)
+    icon_file = "resources/icons/app_icon.png"
+
+    icon_path = resource_path(icon_file)
+    if icon_path.exists():
+        app.setWindowIcon(QIcon(str(icon_path)))
+    else:
+        print(f"[WARNING] Иконка не найдена: {icon_path}", file=sys.stderr)
+
+
+
+def ensure_profiles_dir() -> None:
+    """Создаёт папку для пользовательских профилей если её нет."""
+    from core.resource_path import get_app_data_dir
+    profiles_dir = get_app_data_dir()
+    profiles_dir.mkdir(parents=True, exist_ok=True)
+
+
+def handle_uncaught_exception(exc_type, exc_value, exc_traceback) -> None:
+    """Глобальный обработчик: показывает диалог вместо молчаливого краша."""
     if issubclass(exc_type, KeyboardInterrupt):
         sys.__excepthook__(exc_type, exc_value, exc_traceback)
         return
 
-    tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-    tb_text  = "".join(tb_lines)
-
+    tb_text = "".join(traceback.format_exception(exc_type, exc_value, exc_traceback))
     print(f"[UNCAUGHT EXCEPTION]\n{tb_text}", file=sys.stderr)
 
-    # Пытаемся показать диалог, если QApplication уже запущен
     app = QApplication.instance()
     if app:
         msg = QMessageBox()
@@ -51,6 +68,17 @@ def handle_uncaught_exception(
 def main() -> None:
     # Устанавливаем глобальный обработчик ДО создания QApplication
     sys.excepthook = handle_uncaught_exception
+
+    # --- ФИКС ИКОНКИ ДЛЯ ПАНЕЛИ ЗАДАЧ WINDOWS ---
+    if sys.platform == 'win32':
+        import ctypes
+        # Строка может быть любой, главное — уникальной
+        myappid = 'ProjectToText.1.0.0'
+        try:
+            ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+        except Exception:
+            pass
+    # --------------------------------------------
 
     # High-DPI поддержка (особенно важно на Windows с масштабированием > 100%)
     QApplication.setHighDpiScaleFactorRoundingPolicy(

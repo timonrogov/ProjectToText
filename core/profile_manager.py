@@ -15,17 +15,15 @@ class ProfileManager:
     Пользовательские профили — в произвольных .json файлах (выбирает пользователь).
     """
 
-    # Путь к дефолтному профилю относительно корня проекта
-    _DEFAULT_PROFILE_PATH = Path(__file__).parent.parent / "resources" / "default_profile.json"
+    @property
+    def _default_profile_path(self) -> Path:
+        from core.resource_path import resource_path
+        return resource_path("resources/default_profile.json")
 
     def load_default(self) -> Profile:
-        """
-        Загружает встроенный профиль по умолчанию из resources/.
-        Если файл не найден — возвращает жёстко закодированный fallback.
-        """
-        if self._DEFAULT_PROFILE_PATH.exists():
-            return self.load(self._DEFAULT_PROFILE_PATH)
-        # Fallback: минимальный профиль, если файл ресурсов отсутствует
+        path = self._default_profile_path
+        if path.exists():
+            return self.load(path)
         return Profile()
 
     def load(self, path: Path) -> Profile:

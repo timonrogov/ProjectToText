@@ -50,7 +50,7 @@ class AppMenuBar(QMenuBar):
         self.act_quit = QAction("✖  Выход", self)
         self.act_quit.setShortcut(QKeySequence("Ctrl+Q"))
         self.act_quit.triggered.connect(
-            lambda: self.parent().close() if self.parent() else None
+            lambda: self.window().close() if self.window() else None
         )
         file_menu.addAction(self.act_quit)
 
