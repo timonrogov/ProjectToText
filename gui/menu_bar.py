@@ -50,7 +50,7 @@ class AppMenuBar(QMenuBar):
         self.act_quit = QAction("✖  Выход", self)
         self.act_quit.setShortcut(QKeySequence("Ctrl+Q"))
         self.act_quit.triggered.connect(
-            lambda: self.parent().close() if self.parent() else None
+            lambda: self.window().close() if self.window() else None
         )
         file_menu.addAction(self.act_quit)
 
@@ -66,7 +66,7 @@ class AppMenuBar(QMenuBar):
         QMessageBox.about(
             self.parent(),
             "О программе",
-            "<h3>LLM Context Builder</h3>"
+            "<h3>Project to Text</h3>"
             "<p>Инструмент для агрегации исходного кода "
             "в единый текстовый контекст для LLM.</p>"
             "<p>Стек: Python 3.10+, PyQt6, tiktoken, pathspec</p>",

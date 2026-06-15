@@ -5,6 +5,7 @@ from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtWidgets import (
     QWidget, QHBoxLayout, QLabel,
     QProgressBar, QPushButton, QFrame,
+    QSizeGrip
 )
 
 from core.models import GenerationResult
@@ -94,6 +95,10 @@ class StatusBarWidget(QWidget):
         self._btn_report.setVisible(False)
         self._btn_report.clicked.connect(self.report_requested.emit)
         layout.addWidget(self._btn_report)
+
+        # --- Ползунок изменения размера окна (Size Grip) ---
+        self._size_grip = QSizeGrip(self)
+        layout.addWidget(self._size_grip, 0, Qt.AlignmentFlag.AlignBottom | Qt.AlignmentFlag.AlignRight)
 
     @staticmethod
     def _add_separator(layout: QHBoxLayout) -> None:

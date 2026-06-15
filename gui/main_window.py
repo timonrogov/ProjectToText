@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QSplitter,
     QVBoxLayout, QHBoxLayout,
     QApplication, QMessageBox,
-    QFileDialog,
+    QFileDialog, QLabel, QPushButton
 )
 
 from core import ProfileManager, Profile
@@ -26,6 +26,78 @@ from gui.skipped_files_dialog import SkippedFilesDialog
 
 from workers.scan_worker     import ScanWorker
 from workers.generate_worker import GenerateWorker
+
+
+
+class CustomTitleBar(QWidget):
+    """Кастомная панель заголовка окна."""
+    def __init__(self, parent: QMainWindow):
+        super().__init__(parent)
+        self._parent = parent
+        self.setFixedHeight(32)
+        self.setObjectName("customTitleBar")
+
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(12, 0, 0, 0)
+        layout.setSpacing(0)
+
+        # Название приложения
+        title_label = QLabel("Project to Text")
+        title_label.setObjectName("titleBarLabel")
+        layout.addWidget(title_label)
+        layout.addStretch()
+
+        # Кнопки
+        self.btn_min = QPushButton("—")
+        self.btn_max = QPushButton("🗖")
+        self.btn_close = QPushButton("✕")
+
+        for btn in (self.btn_min, self.btn_max, self.btn_close):
+            btn.setObjectName("titleBarBtn")
+            btn.setFixedSize(45, 32)
+            layout.addWidget(btn)
+
+        self.btn_close.setObjectName("titleBarCloseBtn")
+
+        # Сигналы
+        self.btn_min.clicked.connect(self._parent.showMinimized)
+        self.btn_max.clicked.connect(self._toggle_maximize)
+        self.btn_close.clicked.connect(self._parent.close)
+
+        self._drag_pos = None
+
+    def _toggle_maximize(self):
+        if self._parent.isMaximized():
+            self._parent.showNormal()
+            self.btn_max.setText("🗖")
+        else:
+            self._parent.showMaximized()
+            self.btn_max.setText("🗗")
+
+    # --- Логика перетаскивания окна ---
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._drag_pos = event.globalPosition().toPoint()
+
+    def mouseMoveEvent(self, event):
+        if self._drag_pos is not None and event.buttons() == Qt.MouseButton.LeftButton:
+            if self._parent.isMaximized():
+                self._parent.showNormal()
+                self.btn_max.setText("🗖")
+                # Корректируем позицию мыши при отрыве от полноэкранного режима
+                self._drag_pos = event.globalPosition().toPoint()
+
+            diff = event.globalPosition().toPoint() - self._drag_pos
+            self._parent.move(self._parent.pos() + diff)
+            self._drag_pos = event.globalPosition().toPoint()
+
+    def mouseReleaseEvent(self, event):
+        self._drag_pos = None
+
+    def mouseDoubleClickEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            self._toggle_maximize()
+
 
 
 class MainWindow(QMainWindow):
@@ -63,7 +135,9 @@ class MainWindow(QMainWindow):
     # ================================================================
 
     def _init_window(self) -> None:
-        self.setWindowTitle("LLM Context Builder")
+        # Отключаем системную рамку окна
+        self.setWindowFlag(Qt.WindowType.FramelessWindowHint)
+        self.setWindowTitle("Project to Text")
         self.setMinimumSize(1100, 600)
         self.resize(1300, 740)
 
@@ -80,16 +154,22 @@ class MainWindow(QMainWindow):
     # ================================================================
 
     def _build_ui(self) -> None:
-        # --- Меню ---
-        self._menu_bar = AppMenuBar(self)
-        self.setMenuBar(self._menu_bar)
-
         # --- Центральный виджет ---
         central = QWidget()
+        central.setObjectName("mainWindowCentral")  # Для рамки в стилях
         self.setCentralWidget(central)
+
         root_layout = QVBoxLayout(central)
         root_layout.setContentsMargins(0, 0, 0, 0)
         root_layout.setSpacing(0)
+
+        # --- Наш кастомный заголовок ---
+        self._title_bar = CustomTitleBar(self)
+        root_layout.addWidget(self._title_bar)
+
+        # --- Меню (теперь внутри виджета) ---
+        self._menu_bar = AppMenuBar(self)
+        root_layout.addWidget(self._menu_bar)
 
         # --- Сплиттер ---
         self._splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -239,10 +319,13 @@ class MainWindow(QMainWindow):
 
     def _on_save_profile(self) -> None:
         """Сохраняет текущие настройки GUI в .json файл."""
+        from core.resource_path import get_app_data_dir
+        default_dir = str(get_app_data_dir())
+
         path, _ = QFileDialog.getSaveFileName(
             self,
             "Сохранить профиль настроек",
-            str(Path("profiles") / "my_profile.json"),
+            str(Path(default_dir) / "my_profile.json"),
             "JSON профиль (*.json)",
         )
         if not path:
@@ -257,10 +340,13 @@ class MainWindow(QMainWindow):
 
     def _on_load_profile(self) -> None:
         """Загружает профиль из .json файла и применяет к GUI."""
+        from core.resource_path import get_app_data_dir
+        default_dir = str(get_app_data_dir())
+
         path, _ = QFileDialog.getOpenFileName(
             self,
             "Загрузить профиль настроек",
-            "profiles",
+            default_dir,
             "JSON профиль (*.json)",
         )
         if not path:

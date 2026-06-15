@@ -552,3 +552,51 @@ QMessageBox {
 QMessageBox QLabel {
     color: #cdd6f4;
 }
+
+
+/* ======================================================
+   Кастомный заголовок окна (Title Bar)
+   ====================================================== */
+
+QWidget#customTitleBar {
+    background-color: #11111b;
+}
+
+QLabel#titleBarLabel {
+    color: #89b4fa;
+    font-weight: bold;
+    font-size: 13px;
+}
+
+QPushButton#titleBarBtn {
+    background-color: transparent;
+    border: none;
+    color: #a6adc8;
+    font-size: 15px;
+    border-radius: 0px;
+    padding: 0px;
+}
+
+QPushButton#titleBarBtn:hover {
+    background-color: #313244;
+}
+
+QPushButton#titleBarCloseBtn {
+    background-color: transparent;
+    border: none;
+    color: #a6adc8;
+    font-size: 15px;
+    border-radius: 0px;
+    padding: 0px;
+}
+
+QPushButton#titleBarCloseBtn:hover {
+    background-color: #e32636; /* Красный цвет при наведении на крестик */
+    color: #ffffff;
+}
+
+/* Рамка вокруг всего окна (т.к. системной больше нет) */
+QWidget#mainWindowCentral {
+    border: 1px solid #313244;
+    background-color: #1e1e2e;
+}
