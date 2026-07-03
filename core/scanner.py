@@ -66,10 +66,6 @@ class FileScanner:
                         # Папки идут первыми, затем файлы — алфавитно
                     )
                     for entry in entries:
-                        # Пропускаем все папки, название которых начинается с точки
-                        if entry.is_dir() and entry.name.startswith('.'):
-                            continue
-
                         child_abs = Path(entry.path)
                         child_rel = rel_path / entry.name
                         child_node = _build_node(child_abs, child_rel)

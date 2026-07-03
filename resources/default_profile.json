@@ -2,11 +2,11 @@
   "profile_name": "Default",
   "version": "1.0",
   "filters": {
-    "max_file_size_kb": 20,
+    "max_file_size_kb": 1000,
     "whitelist": [],
     "blacklist": [
       "node_modules", "venv", "env", "__pycache__",
-      "dist", "build", "target", ".idea", ".vscode",
+      "dist", "build", "target", ".idea", ".vscode", ".git",
       "bin", "obj", "packages", "x64"
     ],
     "ignored_extensions": [
